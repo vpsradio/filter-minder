@@ -1,16 +1,18 @@
-import { useFilterStore } from "@/store/filterStore";
 import { getFilterStatus } from "@/types/filter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Filter, AlertTriangle, Clock, XCircle } from "lucide-react";
 import { useMemo } from "react";
+import { Tables } from "@/integrations/supabase/types";
 
-export function StatsBar() {
-  const { filters } = useFilterStore();
+interface StatsBarProps {
+  filters: Tables<"filters">[];
+}
 
+export function StatsBar({ filters }: StatsBarProps) {
   const stats = useMemo(() => {
     const counts = { total: filters.length, ok: 0, warning: 0, urgent: 0, expired: 0 };
     filters.forEach((f) => {
-      const s = getFilterStatus(f.expirationDate);
+      const s = getFilterStatus(new Date(f.expiration_date));
       counts[s]++;
     });
     return counts;
