@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { useFilterStore } from "@/store/filterStore";
 import { getFilterStatus } from "@/types/filter";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addMonths, subMonths, isSameMonth } from "date-fns";
 import { es } from "date-fns/locale";
@@ -7,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tables } from "@/integrations/supabase/types";
 
 const statusDotColor: Record<string, string> = {
   ok: "bg-success",
@@ -15,8 +15,11 @@ const statusDotColor: Record<string, string> = {
   expired: "bg-destructive",
 };
 
-export function FilterCalendar() {
-  const { filters } = useFilterStore();
+interface FilterCalendarProps {
+  filters: Tables<"filters">[];
+}
+
+export function FilterCalendar({ filters }: FilterCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const days = useMemo(() => {
@@ -25,16 +28,16 @@ export function FilterCalendar() {
     return eachDayOfInterval({ start, end });
   }, [currentMonth]);
 
-  const startDay = getDay(days[0]); // 0=Sun
-  const adjustedStart = startDay === 0 ? 6 : startDay - 1; // Mon=0
+  const startDay = getDay(days[0]);
+  const adjustedStart = startDay === 0 ? 6 : startDay - 1;
 
   const expirationsByDay = useMemo(() => {
-    const map = new Map<string, { status: string; count: number }[]>();
+    const map = new Map<string, { status: string }[]>();
     filters.forEach((f) => {
-      const key = format(f.expirationDate, "yyyy-MM-dd");
-      const status = getFilterStatus(f.expirationDate);
+      const key = format(new Date(f.expiration_date), "yyyy-MM-dd");
+      const status = getFilterStatus(new Date(f.expiration_date));
       const arr = map.get(key) || [];
-      arr.push({ status, count: 1 });
+      arr.push({ status });
       map.set(key, arr);
     });
     return map;
@@ -70,11 +73,9 @@ export function FilterCalendar() {
               {d}
             </div>
           ))}
-
           {Array.from({ length: adjustedStart }).map((_, i) => (
             <div key={`empty-${i}`} />
           ))}
-
           {days.map((day) => {
             const key = format(day, "yyyy-MM-dd");
             const events = expirationsByDay.get(key);
