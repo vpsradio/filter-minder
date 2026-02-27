@@ -1,17 +1,19 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AddFilterForm } from "@/components/AddFilterForm";
 import { FilterCalendar } from "@/components/FilterCalendar";
 import { FilterList } from "@/components/FilterList";
 import { StatsBar } from "@/components/StatsBar";
 import { LoginPage } from "@/components/LoginPage";
-import { Filter, LogOut, Shield, Pencil } from "lucide-react";
+import { Filter, LogOut, Shield, Pencil, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tables } from "@/integrations/supabase/types";
 
 const Index = () => {
   const { user, userRole, loading, signOut } = useAuth();
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<Tables<"filters">[]>([]);
 
   const fetchFilters = useCallback(async () => {
@@ -57,6 +59,12 @@ const Index = () => {
               {(() => { const Icon = roleIcon; return <Icon className="w-3.5 h-3.5" />; })()}
               <span>{roleLabel}</span>
             </div>
+            {userRole === "admin" && (
+              <Button variant="outline" size="sm" onClick={() => navigate("/admin")} className="h-8 text-xs gap-1.5">
+                <Users className="w-3.5 h-3.5" />
+                Admin
+              </Button>
+            )}
             <span className="text-xs text-muted-foreground hidden sm:inline">{user.email}</span>
             <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8">
               <LogOut className="w-4 h-4" />
