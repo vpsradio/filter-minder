@@ -4,8 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Shield, Pencil, UserX, Users } from "lucide-react";
+import { ArrowLeft, Shield, Pencil, UserX, Users, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -22,6 +24,12 @@ const Admin = () => {
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // New user form state
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState<string>("editor");
+  const [creating, setCreating] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     const { data: profiles } = await supabase
@@ -66,7 +74,6 @@ const Admin = () => {
         .eq("user_id", userId);
       if (error) { toast.error(error.message); return; }
     } else {
-      // Upsert: delete existing then insert
       await supabase.from("user_roles").delete().eq("user_id", userId);
       const { error } = await supabase
         .from("user_roles")
@@ -76,6 +83,40 @@ const Admin = () => {
 
     toast.success("Rol actualizado");
     fetchUsers();
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEmail.trim() || !newPassword.trim()) {
+      toast.error("Email y contraseña son obligatorios");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const res = await supabase.functions.invoke("admin-create-user", {
+        body: { email: newEmail.trim(), password: newPassword, role: newRole },
+      });
+
+      if (res.error) {
+        toast.error("Error al crear usuario: " + res.error.message);
+      } else if (res.data?.error) {
+        toast.error(res.data.error);
+      } else {
+        toast.success("Usuario creado con rol " + newRole);
+        setNewEmail("");
+        setNewPassword("");
+        setNewRole("editor");
+        fetchUsers();
+      }
+    } catch (err: any) {
+      toast.error("Error: " + err.message);
+    }
+    setCreating(false);
   };
 
   if (userRole !== "admin") return null;
@@ -95,7 +136,58 @@ const Admin = () => {
         </div>
       </header>
 
-      <main className="container max-w-4xl mx-auto px-4 py-6">
+      <main className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* Create user card */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <UserPlus className="w-4 h-4" />
+              Crear Nuevo Usuario
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreateUser} className="grid sm:grid-cols-4 gap-3 items-end">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Email *</Label>
+                <Input
+                  type="email"
+                  placeholder="usuario@ejemplo.com"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Contraseña *</Label>
+                <Input
+                  type="password"
+                  placeholder="Mín. 6 caracteres"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Rol</Label>
+                <Select value={newRole} onValueChange={setNewRole}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="editor">Editor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="submit" disabled={creating} className="h-9">
+                <UserPlus className="w-4 h-4 mr-1.5" />
+                {creating ? "Creando..." : "Crear"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Users list */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
