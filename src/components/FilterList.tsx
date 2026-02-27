@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { getFilterStatus, getDaysUntilExpiration } from "@/types/filter";
 import { StatusBadge } from "./StatusBadge";
+import { EditFilterDialog } from "./EditFilterDialog";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { MapPin, Calendar, Trash2, Filter } from "lucide-react";
+import { MapPin, Calendar, Trash2, Filter, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tables } from "@/integrations/supabase/types";
@@ -17,6 +19,7 @@ interface FilterListProps {
 
 export function FilterList({ filters, onDeleted }: FilterListProps) {
   const { userRole, user } = useAuth();
+  const [editingFilter, setEditingFilter] = useState<Tables<"filters"> | null>(null);
 
   const sorted = [...filters].sort(
     (a, b) => new Date(a.expiration_date).getTime() - new Date(b.expiration_date).getTime()
@@ -100,21 +103,40 @@ export function FilterList({ filters, onDeleted }: FilterListProps) {
                   </p>
                 </div>
 
-                {canDelete && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-destructive flex-shrink-0"
-                    onClick={() => handleDelete(filter.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                )}
+                <div className="flex flex-col gap-1 flex-shrink-0">
+                  {canDelete && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-primary h-7 w-7"
+                      onClick={() => setEditingFilter(filter)}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                  {canDelete && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive h-7 w-7"
+                      onClick={() => handleDelete(filter.id)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
         );
       })}
+
+      <EditFilterDialog
+        filter={editingFilter}
+        open={!!editingFilter}
+        onOpenChange={(open) => { if (!open) setEditingFilter(null); }}
+        onSaved={onDeleted}
+      />
     </div>
   );
 }
