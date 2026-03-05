@@ -12,8 +12,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify calling user is admin
-    const authHeader = req.headers.get("Authorization")!;
+    // Validate JWT from Authorization header
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -21,26 +28,54 @@ Deno.serve(async (req) => {
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user: caller } } = await userClient.auth.getUser();
-    if (!caller) throw new Error("No autenticado");
 
-    // Check admin role
-    const { data: roleData } = await userClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", caller.id)
-      .eq("role", "admin")
-      .maybeSingle();
+    // Verify JWT claims
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (!roleData) throw new Error("No tienes permisos de administrador");
+    const callerId = claimsData.claims.sub;
 
-    const { email, password, role } = await req.json();
-    if (!email || !password) throw new Error("Email y contraseña son obligatorios");
-
-    // Use service role to create user
+    // Check admin role server-side using service role client to bypass RLS
     const adminClient = createClient(supabaseUrl, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    const { data: roleData } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", callerId)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    if (!roleData) {
+      return new Response(JSON.stringify({ error: "No tienes permisos de administrador" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { email, password, role } = await req.json();
+    if (!email || !password) {
+      return new Response(JSON.stringify({ error: "Email y contraseña son obligatorios" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Validate role input
+    const validRoles = ["admin", "editor"];
+    if (role && role !== "none" && !validRoles.includes(role)) {
+      return new Response(JSON.stringify({ error: "Rol inválido" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email,
@@ -48,22 +83,32 @@ Deno.serve(async (req) => {
       email_confirm: true,
     });
 
-    if (createError) throw new Error(createError.message);
+    if (createError) {
+      return new Response(JSON.stringify({ error: createError.message }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Assign role if specified
     if (role && role !== "none" && newUser.user) {
       const { error: roleError } = await adminClient
         .from("user_roles")
         .insert({ user_id: newUser.user.id, role });
-      if (roleError) throw new Error("Usuario creado pero error al asignar rol: " + roleError.message);
+      if (roleError) {
+        return new Response(
+          JSON.stringify({ error: "Usuario creado pero error al asignar rol: " + roleError.message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     return new Response(JSON.stringify({ success: true, userId: newUser.user?.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 400,
+    return new Response(JSON.stringify({ error: "Error interno del servidor" }), {
+      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
