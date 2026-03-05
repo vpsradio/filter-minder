@@ -54,12 +54,14 @@ const Admin = () => {
   }, []);
 
   useEffect(() => {
-    if (userRole !== "admin") {
+    if (!loading && userRole !== "admin") {
       navigate("/");
       return;
     }
-    fetchUsers();
-  }, [userRole, navigate, fetchUsers]);
+    if (!loading && userRole === "admin") {
+      fetchUsers();
+    }
+  }, [userRole, loading, navigate, fetchUsers]);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     if (userId === user?.id) {
