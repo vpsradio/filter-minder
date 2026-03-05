@@ -119,7 +119,7 @@ const Admin = () => {
     setCreating(false);
   };
 
-  if (userRole !== "admin") return null;
+  if (loading || userRole !== "admin") return null;
 
   return (
     <div className="min-h-screen bg-background">
