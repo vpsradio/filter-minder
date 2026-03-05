@@ -54,12 +54,14 @@ const Admin = () => {
   }, []);
 
   useEffect(() => {
-    if (userRole !== "admin") {
+    if (!loading && userRole !== "admin") {
       navigate("/");
       return;
     }
-    fetchUsers();
-  }, [userRole, navigate, fetchUsers]);
+    if (!loading && userRole === "admin") {
+      fetchUsers();
+    }
+  }, [userRole, loading, navigate, fetchUsers]);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     if (userId === user?.id) {
@@ -119,7 +121,7 @@ const Admin = () => {
     setCreating(false);
   };
 
-  if (userRole !== "admin") return null;
+  if (loading || userRole !== "admin") return null;
 
   return (
     <div className="min-h-screen bg-background">
