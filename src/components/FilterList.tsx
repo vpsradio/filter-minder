@@ -4,13 +4,15 @@ import { StatusBadge } from "./StatusBadge";
 import { EditFilterDialog } from "./EditFilterDialog";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { MapPin, Calendar, Trash2, Filter, Pencil } from "lucide-react";
+import { MapPin, Calendar, Trash2, Filter, Pencil, Download, FileText, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { exportToPDF, exportToCSV } from "@/lib/exportFilters";
 
 interface FilterListProps {
   filters: Tables<"filters">[];
@@ -20,10 +22,57 @@ interface FilterListProps {
 export function FilterList({ filters, onDeleted }: FilterListProps) {
   const { userRole, user } = useAuth();
   const [editingFilter, setEditingFilter] = useState<Tables<"filters"> | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const sorted = [...filters].sort(
     (a, b) => new Date(a.expiration_date).getTime() - new Date(b.expiration_date).getTime()
   );
+
+  const allSelected = sorted.length > 0 && selectedIds.size === sorted.length;
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sorted.map((f) => f.id)));
+    }
+  };
+
+  const getExportFilters = () => {
+    if (selectedIds.size > 0) {
+      return sorted.filter((f) => selectedIds.has(f.id));
+    }
+    return sorted;
+  };
+
+  const handleExportPDF = () => {
+    const data = getExportFilters();
+    if (data.length === 0) {
+      toast.error("No hay filtros para exportar");
+      return;
+    }
+    exportToPDF(data);
+    toast.success(`PDF generado con ${data.length} filtro(s)`);
+  };
+
+  const handleExportCSV = () => {
+    const data = getExportFilters();
+    if (data.length === 0) {
+      toast.error("No hay filtros para exportar");
+      return;
+    }
+    exportToCSV(data);
+    toast.success(`CSV generado con ${data.length} filtro(s)`);
+  };
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("filters").delete().eq("id", id);
@@ -31,6 +80,8 @@ export function FilterList({ filters, onDeleted }: FilterListProps) {
       toast.error("Error al eliminar: " + error.message);
     } else {
       toast.success("Filtro eliminado");
+      selectedIds.delete(id);
+      setSelectedIds(new Set(selectedIds));
       onDeleted();
     }
   };
@@ -47,20 +98,53 @@ export function FilterList({ filters, onDeleted }: FilterListProps) {
 
   return (
     <div className="space-y-3">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={allSelected}
+            onCheckedChange={toggleAll}
+            aria-label="Seleccionar todos"
+          />
+          <span className="text-xs text-muted-foreground">
+            {selectedIds.size > 0
+              ? `${selectedIds.size} seleccionado(s)`
+              : "Seleccionar todos"}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Button variant="outline" size="sm" onClick={handleExportPDF} className="h-8 text-xs gap-1.5">
+            <FileText className="w-3.5 h-3.5" />
+            PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportCSV} className="h-8 text-xs gap-1.5">
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            CSV
+          </Button>
+        </div>
+      </div>
+
       {sorted.map((filter, i) => {
         const expDate = new Date(filter.expiration_date);
         const status = getFilterStatus(expDate);
         const daysLeft = getDaysUntilExpiration(expDate);
         const canDelete = userRole === "admin" || filter.user_id === user?.id;
+        const isSelected = selectedIds.has(filter.id);
 
         return (
           <Card
             key={filter.id}
-            className="glass-card animate-fade-in overflow-hidden"
+            className={`glass-card animate-fade-in overflow-hidden transition-colors ${isSelected ? "ring-1 ring-primary/40 bg-primary/5" : ""}`}
             style={{ animationDelay: `${i * 60}ms` }}
           >
             <CardContent className="p-4">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={() => toggleSelect(filter.id)}
+                  className="mt-1"
+                  aria-label={`Seleccionar ${filter.location}`}
+                />
                 <div className="flex-1 min-w-0 space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono text-xs px-2 py-0.5 bg-primary/10 text-primary rounded">
