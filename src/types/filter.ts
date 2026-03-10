@@ -1,11 +1,10 @@
 export type FilterType = 
-  | "HEPA"
-  | "Carbón Activo"
-  | "Osmosis Inversa"
-  | "Sedimentos"
-  | "UV"
-  | "Mecánico"
-  | "Otro";
+  | "Claris 250"
+  | "Claris 500"
+  | "Claris 1000"
+  | "Claris 1500"
+  | "Claris 2000"
+  | "Brita";
 
 export interface FilterRecord {
   id: string;
@@ -36,11 +35,10 @@ export function getDaysUntilExpiration(expirationDate: Date): number {
 }
 
 export const FILTER_TYPES: FilterType[] = [
-  "HEPA",
-  "Carbón Activo",
-  "Osmosis Inversa",
-  "Sedimentos",
-  "UV",
-  "Mecánico",
-  "Otro",
+  "Claris 250",
+  "Claris 500",
+  "Claris 1000",
+  "Claris 1500",
+  "Claris 2000",
+  "Brita",
 ];
