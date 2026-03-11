@@ -8,6 +8,7 @@ import { FilterList } from "@/components/FilterList";
 import { StatsBar } from "@/components/StatsBar";
 import { LoginPage } from "@/components/LoginPage";
 import { Filter, LogOut, Shield, Pencil, Users } from "lucide-react";
+import { ImportExcelDialog } from "@/components/ImportExcelDialog";
 import { Button } from "@/components/ui/button";
 import { Tables } from "@/integrations/supabase/types";
 
