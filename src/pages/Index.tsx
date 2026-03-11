@@ -81,6 +81,7 @@ const Index = () => {
           <div className="space-y-6">
             <FilterCalendar filters={filters} />
             <AddFilterForm onAdded={fetchFilters} />
+            <ImportExcelDialog onImported={fetchFilters} />
           </div>
 
           <div className="lg:col-span-2">
