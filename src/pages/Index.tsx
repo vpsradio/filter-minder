@@ -8,6 +8,7 @@ import { FilterList } from "@/components/FilterList";
 import { StatsBar } from "@/components/StatsBar";
 import { LoginPage } from "@/components/LoginPage";
 import { Filter, LogOut, Shield, Pencil, Users } from "lucide-react";
+import { ImportExcelDialog } from "@/components/ImportExcelDialog";
 import { Button } from "@/components/ui/button";
 import { Tables } from "@/integrations/supabase/types";
 
@@ -80,6 +81,7 @@ const Index = () => {
           <div className="space-y-6">
             <FilterCalendar filters={filters} />
             <AddFilterForm onAdded={fetchFilters} />
+            <ImportExcelDialog onImported={fetchFilters} />
           </div>
 
           <div className="lg:col-span-2">
