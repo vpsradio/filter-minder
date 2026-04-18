@@ -1,150 +1,96 @@
-# 🚀 Despliegue en Portainer
+# 📋 Stack de Portainer - Copiar y pegar
 
-Guía para desplegar **FilterControl + Supabase self-hosted** como un Stack en Portainer.
-
----
-
-## 📋 Requisitos previos
-
-- Portainer CE/BE instalado y funcionando
-- Docker Engine 20.10+ con Docker Compose v2
-- Un dominio (opcional, puedes usar la IP del servidor)
-- Puertos libres: `3000` (app), `8000` (Supabase API), `3001` (Studio), `5432` (Postgres)
+Este archivo contiene un `docker-compose.yml` **autocontenido** listo para pegar directamente en Portainer sin necesidad de archivos externos (kong.yml, init.sql, etc. se generan en tiempo de arranque).
 
 ---
 
-## 🔑 Paso 1 — Generar las claves JWT
+## 🔑 Paso 1 — Generar las claves
 
-Antes de crear el Stack necesitas generar tres secretos. Ejecuta esto en **cualquier máquina con Node.js** (o en el propio servidor por SSH):
+Ejecuta en cualquier máquina con Node.js (o usa https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys):
 
 ```bash
-# 1. Genera el JWT_SECRET y la POSTGRES_PASSWORD
-JWT_SECRET=$(openssl rand -hex 32)
-POSTGRES_PASSWORD=$(openssl rand -hex 32)
-
-echo "JWT_SECRET=$JWT_SECRET"
-echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
-
-# 2. Genera ANON_KEY y SERVICE_ROLE_KEY a partir del JWT_SECRET
-JWT_SECRET=$JWT_SECRET node scripts/generate-keys.js
+# Generar JWT_SECRET y POSTGRES_PASSWORD
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 32)"
+echo "JWT_SECRET=$(openssl rand -hex 32)"
 ```
 
-Guarda los 4 valores: `JWT_SECRET`, `POSTGRES_PASSWORD`, `ANON_KEY`, `SERVICE_ROLE_KEY`.
-
-> 💡 Si no tienes Node.js a mano, puedes generar las claves online en: https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys
-
----
-
-## 📦 Paso 2 — Subir los archivos al servidor
-
-Portainer necesita acceder a algunos archivos de configuración (`kong.yml`, init SQL, Dockerfile, etc.). Tienes **dos opciones**:
-
-### Opción A — Repositorio Git (recomendado)
-
-Portainer puede crear el Stack directamente desde un repo de Git. Ve al **Paso 3 → Método Git**.
-
-### Opción B — Subir archivos manualmente
-
-Por SSH al servidor:
+Luego usa ese `JWT_SECRET` para generar las claves (pega esto en la terminal sustituyendo `TU_JWT_SECRET`):
 
 ```bash
-mkdir -p /opt/filtercontrol
-cd /opt/filtercontrol
-git clone <TU_REPO_URL> .
+JWT_SECRET="TU_JWT_SECRET" node -e "
+const c=require('crypto'); const s=process.env.JWT_SECRET;
+const mk=r=>{const h=Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url');
+const p=Buffer.from(JSON.stringify({iss:'supabase',ref:'local',role:r,iat:Math.floor(Date.now()/1000),exp:Math.floor(Date.now()/1000)+315360000})).toString('base64url');
+return h+'.'+p+'.'+c.createHmac('sha256',s).update(h+'.'+p).digest('base64url')};
+console.log('ANON_KEY='+mk('anon'));
+console.log('SERVICE_ROLE_KEY='+mk('service_role'));
+"
 ```
+
+Guarda los **4 valores**: `POSTGRES_PASSWORD`, `JWT_SECRET`, `ANON_KEY`, `SERVICE_ROLE_KEY`.
 
 ---
 
-## 🐳 Paso 3 — Crear el Stack en Portainer
+## 🐳 Paso 2 — Crear el Stack en Portainer
 
-### Método Git (más sencillo)
-
-1. En Portainer, ve a **Stacks → Add stack**.
+1. Portainer → **Stacks → Add stack**
 2. **Name**: `filtercontrol`
-3. **Build method**: selecciona **Repository**.
-4. Rellena:
-   - **Repository URL**: la URL de tu repo
-   - **Repository reference**: `refs/heads/main` (o tu rama)
-   - **Compose path**: `docker-compose.yml`
+3. **Build method**: **Web editor**
+4. Pega el contenido de `portainer-stack.yml` (siguiente sección).
 5. En **Environment variables**, añade:
 
 | Variable | Valor |
 |---|---|
-| `DOMAIN` | IP o dominio del servidor (ej: `192.168.1.100` o `filtros.midominio.com`) |
-| `POSTGRES_PASSWORD` | El generado en el paso 1 |
-| `JWT_SECRET` | El generado en el paso 1 |
-| `ANON_KEY` | El generado en el paso 1 |
-| `SERVICE_ROLE_KEY` | El generado en el paso 1 |
-| `SMTP_HOST` | (opcional) servidor SMTP |
-| `SMTP_PORT` | (opcional, por defecto `587`) |
-| `SMTP_USER` | (opcional) |
-| `SMTP_PASS` | (opcional) |
-| `SMTP_ADMIN_EMAIL` | (opcional) email del admin |
+| `DOMAIN` | IP o dominio del servidor (ej. `192.168.1.50`) |
+| `POSTGRES_PASSWORD` | (paso 1) |
+| `JWT_SECRET` | (paso 1) |
+| `ANON_KEY` | (paso 1) |
+| `SERVICE_ROLE_KEY` | (paso 1) |
+| `APP_IMAGE` | `nginx:alpine` *(temporal — ver paso 4)* |
 
 6. Pulsa **Deploy the stack**.
 
-### Método Web editor (sin Git)
+---
 
-1. Sube los archivos del repo al servidor (Opción B del paso 2).
-2. En Portainer: **Stacks → Add stack → Web editor**.
-3. Pega el contenido de `docker-compose.yml`.
-4. ⚠️ Este método requiere que los archivos referenciados (`./docker/kong.yml`, `./docker/init/`, `./Dockerfile`, `./nginx.conf`) existan en el host. Por eso **es preferible el método Git**.
+## 🖼️ Paso 3 — Construir y publicar la imagen del frontend
+
+Portainer no compila código fuente desde un Web editor, así que necesitas **construir la imagen** del frontend en otra máquina y subirla a un registry (Docker Hub, GHCR, registry privado…).
+
+En tu máquina local, dentro del repo:
+
+```bash
+# Construye la imagen pasando la URL pública de Supabase
+docker build \
+  --build-arg VITE_SUPABASE_URL=http://TU_IP:8000 \
+  --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=TU_ANON_KEY \
+  -t TU_USUARIO/filtercontrol:latest .
+
+# Súbela a Docker Hub (o el registry que uses)
+docker push TU_USUARIO/filtercontrol:latest
+```
+
+Luego edita el Stack en Portainer y cambia `APP_IMAGE` por `TU_USUARIO/filtercontrol:latest` y pulsa **Update the stack**.
+
+> 💡 Si no quieres usar registry, salta este stack y usa el método **Repository** (Stacks → Add stack → Repository) apuntando al repo Git — Portainer construirá la imagen automáticamente.
 
 ---
 
-## ✅ Paso 4 — Verificar el despliegue
+## 🗄️ Paso 4 — Aplicar migraciones
 
-Una vez Portainer muestre todos los contenedores en verde:
+Una vez el Stack esté arriba:
 
-| Servicio | URL | Notas |
-|---|---|---|
-| App React | `http://TU_IP:3000` | La aplicación FilterControl |
-| Supabase Studio | `http://TU_IP:3001` | Dashboard de la DB |
-| Supabase API | `http://TU_IP:8000` | Endpoint REST/Auth |
-
----
-
-## 🗄️ Paso 5 — Aplicar las migraciones
-
-La primera vez tienes que crear las tablas (`filters`, `profiles`, `user_roles`, etc).
-
-Desde Portainer: **Containers → filtercontrol-db-1 → Console → Connect**, luego ejecuta:
+**Portainer → Containers → `filtercontrol_db_1` → Console → Connect** (`/bin/bash`), y ejecuta:
 
 ```bash
 psql -U postgres -d postgres
 ```
 
-Y pega el contenido de cada archivo de `supabase/migrations/*.sql` en orden cronológico.
-
-> 💡 Alternativa: copia los archivos al contenedor y ejecútalos:
-> ```bash
-> docker cp supabase/migrations/. filtercontrol-db-1:/tmp/migrations/
-> docker exec -i filtercontrol-db-1 bash -c 'for f in /tmp/migrations/*.sql; do psql -U postgres -d postgres -f "$f"; done'
-> ```
+Pega el contenido de cada archivo de `supabase/migrations/*.sql` en orden cronológico.
 
 ---
 
-## 🔄 Actualizar el Stack
+## ✅ Paso 5 — Acceder
 
-Cuando hagas cambios en el código:
-
-1. Push al repo Git.
-2. En Portainer: **Stacks → filtercontrol → Pull and redeploy**.
-3. Marca **Re-pull image and redeploy** para que reconstruya la imagen del frontend.
-
----
-
-## 🛡️ Recomendaciones de producción
-
-- **Nginx Proxy Manager** (otro stack en Portainer) delante para SSL automático con Let's Encrypt.
-- Cambia los puertos públicos (`3000`, `8000`, `3001`) a la red interna y expón solo Nginx.
-- Activa backups automáticos del volumen `db-data`.
-- No expongas el puerto `5432` de Postgres a internet.
-
----
-
-## ❓ Troubleshooting
-
-- **El frontend no conecta con Supabase**: verifica que `DOMAIN` coincida con la URL desde la que accedes al navegador. Si accedes por IP, `DOMAIN` debe ser esa misma IP.
-- **`kong` no arranca**: revisa que `ANON_KEY` y `SERVICE_ROLE_KEY` estén bien generadas a partir del `JWT_SECRET`.
-- **Error de permisos en `db`**: borra el volumen `db-data` y vuelve a desplegar (⚠️ borra todos los datos).
+- **App**: `http://TU_IP:3000`
+- **Supabase Studio**: `http://TU_IP:3001`
+- **Supabase API**: `http://TU_IP:8000`

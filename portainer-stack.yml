@@ -1,0 +1,208 @@
+# ============================================================
+# FilterControl - Stack autocontenido para Portainer
+# Pega este archivo entero en: Portainer → Stacks → Add stack → Web editor
+#
+# Variables de entorno requeridas (configurar en Portainer):
+#   DOMAIN, POSTGRES_PASSWORD, JWT_SECRET, ANON_KEY, SERVICE_ROLE_KEY, APP_IMAGE
+# ============================================================
+version: "3.8"
+
+x-restart: &restart
+  restart: unless-stopped
+
+services:
+  # ── Frontend React ────────────────────────────────────
+  app:
+    image: ${APP_IMAGE}
+    ports:
+      - "3000:80"
+    depends_on:
+      - kong
+    <<: *restart
+
+  # ── API Gateway (Kong) ───────────────────────────────
+  kong:
+    image: kong:2.8.1
+    ports:
+      - "8000:8000"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+    volumes:
+      - kong-config:/var/lib/kong
+    entrypoint:
+      - sh
+      - -c
+      - |
+        cat > /var/lib/kong/kong.yml <<'YAML'
+        _format_version: "2.1"
+        _transform: true
+        consumers:
+          - username: anon
+            keyauth_credentials:
+              - key: $${ANON_KEY}
+          - username: service_role
+            keyauth_credentials:
+              - key: $${SERVICE_ROLE_KEY}
+        acls:
+          - consumer: anon
+            group: anon
+          - consumer: service_role
+            group: admin
+        services:
+          - name: auth-v1
+            url: http://auth:9999/
+            routes:
+              - name: auth-v1-all
+                strip_path: true
+                paths: [/auth/v1/]
+            plugins:
+              - name: cors
+              - name: key-auth
+                config: { hide_credentials: false }
+          - name: rest-v1
+            url: http://rest:3000/
+            routes:
+              - name: rest-v1-all
+                strip_path: true
+                paths: [/rest/v1/]
+            plugins:
+              - name: cors
+              - name: key-auth
+                config: { hide_credentials: false }
+        YAML
+        exec /docker-entrypoint.sh kong docker-start
+    depends_on:
+      - auth
+      - rest
+    <<: *restart
+
+  # ── Auth (GoTrue) ────────────────────────────────────
+  auth:
+    image: supabase/gotrue:v2.170.0
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: http://${DOMAIN:-localhost}:8000
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_SITE_URL: http://${DOMAIN:-localhost}:3000
+      GOTRUE_URI_ALLOW_LIST: ""
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    <<: *restart
+
+  # ── REST (PostgREST) ─────────────────────────────────
+  rest:
+    image: postgrest/postgrest:v12.2.12
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/postgres
+      PGRST_DB_SCHEMAS: public,storage,graphql_public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    <<: *restart
+
+  # ── Studio (Dashboard) ───────────────────────────────
+  studio:
+    image: supabase/studio:20250512-1db39c6
+    ports:
+      - "3001:3000"
+    environment:
+      STUDIO_PG_META_URL: http://meta:8080
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLIC_URL: http://${DOMAIN:-localhost}:8000
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      DEFAULT_ORGANIZATION_NAME: FilterControl
+      DEFAULT_PROJECT_NAME: FilterControl
+    depends_on:
+      - meta
+    <<: *restart
+
+  # ── Meta (Postgres metadata) ─────────────────────────
+  meta:
+    image: supabase/postgres-meta:v0.87.1
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    <<: *restart
+
+  # ── Database (PostgreSQL con init inline) ────────────
+  db:
+    image: supabase/postgres:15.8.1.060
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXP: 3600
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - db-init:/docker-entrypoint-initdb.d
+    configs:
+      - source: db_init_sql
+        target: /docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: pg_isready -U postgres -h localhost
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    <<: *restart
+
+configs:
+  db_init_sql:
+    content: |
+      DO $$$$
+      BEGIN
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN
+          CREATE ROLE anon NOLOGIN NOINHERIT;
+        END IF;
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticated') THEN
+          CREATE ROLE authenticated NOLOGIN NOINHERIT;
+        END IF;
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticator') THEN
+          EXECUTE format('CREATE ROLE authenticator NOINHERIT LOGIN PASSWORD %L', current_setting('POSTGRES_PASSWORD', true));
+        END IF;
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN
+          CREATE ROLE supabase_auth_admin NOLOGIN NOINHERIT;
+        END IF;
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_admin') THEN
+          CREATE ROLE supabase_admin NOLOGIN NOINHERIT;
+        END IF;
+      END
+      $$$$;
+      GRANT anon TO authenticator;
+      GRANT authenticated TO authenticator;
+
+volumes:
+  db-data:
+  db-init:
+  kong-config:
