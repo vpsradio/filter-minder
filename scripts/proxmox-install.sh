@@ -29,7 +29,8 @@ read -rp "Password root del contenedor: " -s PASS; echo
 read -rp "Repo Git de la app: " REPO
 [ -z "$REPO" ] && err "Repo obligatorio"
 
-STORAGE="local-lvm"
+STORAGE="disco2pool-vmdata"
+BRIDGE="vmbr1"
 TEMPLATE="ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
 
 # --- Template ---
@@ -45,7 +46,7 @@ pct create "$CTID" "local:vztmpl/${TEMPLATE}" \
   --password "$PASS" \
   --storage "$STORAGE" --rootfs "${STORAGE}:20" \
   --memory 4096 --cores 2 \
-  --net0 name=eth0,bridge=vmbr0,ip=dhcp \
+  --net0 "name=eth0,bridge=${BRIDGE},ip=dhcp,ip6=dhcp" \
   --features nesting=1,keyctl=1 \
   --unprivileged 1 --onboot 1 --start 0
 
