@@ -123,7 +123,7 @@ services:
 
   # ── Studio (Dashboard) ───────────────────────────────
   studio:
-    image: supabase/studio:20250512-1db39c6
+    image: supabase/studio:2026.04.28-sha-89d08a2
     ports:
       - "3001:3000"
     environment:
