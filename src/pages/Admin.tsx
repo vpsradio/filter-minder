@@ -74,13 +74,21 @@ const Admin = () => {
         .from("user_roles")
         .delete()
         .eq("user_id", userId);
-      if (error) { toast.error(error.message); return; }
+      if (error) {
+        console.error("Error removing role:", error);
+        toast.error("No se pudo actualizar el rol.");
+        return;
+      }
     } else {
       await supabase.from("user_roles").delete().eq("user_id", userId);
       const { error } = await supabase
         .from("user_roles")
         .insert({ user_id: userId, role: newRole as "admin" | "editor" });
-      if (error) { toast.error(error.message); return; }
+      if (error) {
+        console.error("Error assigning role:", error);
+        toast.error("No se pudo actualizar el rol.");
+        return;
+      }
     }
 
     toast.success("Rol actualizado");

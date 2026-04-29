@@ -53,7 +53,8 @@ export function AddFilterForm({ onAdded }: AddFilterFormProps) {
     setLoading(false);
 
     if (error) {
-      toast.error("Error al guardar: " + error.message);
+      console.error("Error saving filter:", error);
+      toast.error("No se pudo guardar el filtro. Revisa los datos e inténtalo de nuevo.");
     } else {
       setLocation("");
       setInstallationDate("");

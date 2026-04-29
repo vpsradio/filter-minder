@@ -77,7 +77,8 @@ export function FilterList({ filters, onDeleted }: FilterListProps) {
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("filters").delete().eq("id", id);
     if (error) {
-      toast.error("Error al eliminar: " + error.message);
+      console.error("Error deleting filter:", error);
+      toast.error("No se pudo eliminar el filtro. Inténtalo de nuevo.");
     } else {
       toast.success("Filtro eliminado");
       selectedIds.delete(id);
