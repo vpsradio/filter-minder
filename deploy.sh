@@ -35,7 +35,7 @@ log "Generando claves seguras..."
 POSTGRES_PASSWORD=$(openssl rand -hex 32)
 JWT_SECRET=$(openssl rand -hex 32)
 
-KEYS=$(JWT_SECRET=$JWT_SECRET node scripts/generate-keys.js)
+KEYS=$(JWT_SECRET=$JWT_SECRET node scripts/generate-keys.cjs)
 ANON_KEY=$(echo "$KEYS" | grep ANON_KEY | cut -d= -f2)
 SERVICE_ROLE_KEY=$(echo "$KEYS" | grep SERVICE_ROLE_KEY | cut -d= -f2)
 
