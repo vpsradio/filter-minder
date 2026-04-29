@@ -152,7 +152,8 @@ export function ImportExcelDialog({ onImported }: ImportExcelDialogProps) {
     setImporting(false);
 
     if (error) {
-      toast.error("Error al importar: " + error.message);
+      console.error("Error importing filters:", error);
+      toast.error("No se pudieron importar los filtros. Revisa el archivo e inténtalo de nuevo.");
     } else {
       toast.success(`${records.length} filtro(s) importados correctamente`);
       setRows([]);
