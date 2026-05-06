@@ -24,7 +24,7 @@ services:
   kong:
     image: kong:2.8.1
     ports:
-      - "8000:45393"
+      - "45393:8000"
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
