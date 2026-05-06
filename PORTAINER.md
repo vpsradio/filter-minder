@@ -61,7 +61,7 @@ En tu máquina local, dentro del repo:
 ```bash
 # Construye la imagen pasando la URL pública de Supabase
 docker build \
-  --build-arg VITE_SUPABASE_URL=http://TU_IP:8000 \
+  --build-arg VITE_SUPABASE_URL=http://TU_IP:45393 \
   --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=TU_ANON_KEY \
   -t TU_USUARIO/filtercontrol:latest .
 
@@ -93,4 +93,4 @@ Pega el contenido de cada archivo de `supabase/migrations/*.sql` en orden cronol
 
 - **App**: `http://TU_IP:3000`
 - **Supabase Studio**: `http://TU_IP:3001`
-- **Supabase API**: `http://TU_IP:8000`
+- **Supabase API**: `http://TU_IP:45393`

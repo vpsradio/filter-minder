@@ -88,7 +88,7 @@ cat > "$CREDS_FILE" <<EOF
 
 App URL:            http://${DOMAIN}:3000
 Supabase Studio:    http://${DOMAIN}:3001
-Supabase API:       http://${DOMAIN}:8000
+Supabase API:       http://${DOMAIN}:45393
 
 ANON_KEY=${ANON_KEY}
 SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}
@@ -105,7 +105,7 @@ echo "============================================"
 echo ""
 echo "🌐 App:              http://${DOMAIN}:3000"
 echo "🛠️  Supabase Studio:  http://${DOMAIN}:3001"
-echo "🔌 Supabase API:     http://${DOMAIN}:8000"
+echo "🔌 Supabase API:     http://${DOMAIN}:45393"
 echo ""
 echo "📄 Credenciales guardadas en: ${CREDS_FILE}"
 echo ""

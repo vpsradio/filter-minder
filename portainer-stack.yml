@@ -24,7 +24,7 @@ services:
   kong:
     image: kong:2.8.1
     ports:
-      - "8000:8000"
+      - "45393:8000"
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
@@ -89,7 +89,7 @@ services:
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
-      API_EXTERNAL_URL: http://${DOMAIN:-localhost}:8000
+      API_EXTERNAL_URL: http://${DOMAIN:-localhost}:45393
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
       GOTRUE_SITE_URL: http://${DOMAIN:-localhost}:3000
@@ -129,7 +129,7 @@ services:
     environment:
       STUDIO_PG_META_URL: http://meta:8080
       SUPABASE_URL: http://kong:8000
-      SUPABASE_PUBLIC_URL: http://${DOMAIN:-localhost}:8000
+      SUPABASE_PUBLIC_URL: http://${DOMAIN:-localhost}:45393
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       DEFAULT_ORGANIZATION_NAME: FilterControl

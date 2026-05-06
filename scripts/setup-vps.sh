@@ -117,7 +117,7 @@ docker compose up -d
 # Esperar a que esté listo
 echo -n "Esperando a que Supabase arranque"
 for i in $(seq 1 30); do
-  if curl -s http://localhost:8000/rest/v1/ -H "apikey: ${ANON_KEY}" > /dev/null 2>&1; then
+  if curl -s http://localhost:45393/rest/v1/ -H "apikey: ${ANON_KEY}" > /dev/null 2>&1; then
     echo ""
     log "Supabase está listo"
     break
@@ -193,7 +193,7 @@ server {
 
     # Proxy a Supabase API
     location /supabase/ {
-        proxy_pass http://localhost:8000/;
+        proxy_pass http://localhost:45393/;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
