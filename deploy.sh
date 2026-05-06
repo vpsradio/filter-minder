@@ -86,7 +86,7 @@ cat > "$CREDS_FILE" <<EOF
 # FilterControl - Credenciales generadas $(date)
 # ⚠️  GUARDA ESTE ARCHIVO EN LUGAR SEGURO Y BÓRRALO DEL SERVIDOR
 
-App URL:            http://${DOMAIN}:3000
+App URL:            http://${DOMAIN}:45394
 Supabase Studio:    http://${DOMAIN}:3001
 Supabase API:       http://${DOMAIN}:45393
 
@@ -103,7 +103,7 @@ echo "============================================"
 echo -e "${GREEN}  ✅ Despliegue completado${NC}"
 echo "============================================"
 echo ""
-echo "🌐 App:              http://${DOMAIN}:3000"
+echo "🌐 App:              http://${DOMAIN}:45394"
 echo "🛠️  Supabase Studio:  http://${DOMAIN}:3001"
 echo "🔌 Supabase API:     http://${DOMAIN}:45393"
 echo ""

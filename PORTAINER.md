@@ -91,6 +91,6 @@ Pega el contenido de cada archivo de `supabase/migrations/*.sql` en orden cronol
 
 ## ✅ Paso 5 — Acceder
 
-- **App**: `http://TU_IP:3000`
+- **App**: `http://TU_IP:45394`
 - **Supabase Studio**: `http://TU_IP:3001`
 - **Supabase API**: `http://TU_IP:45393`
