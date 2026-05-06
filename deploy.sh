@@ -87,7 +87,7 @@ cat > "$CREDS_FILE" <<EOF
 # ⚠️  GUARDA ESTE ARCHIVO EN LUGAR SEGURO Y BÓRRALO DEL SERVIDOR
 
 App URL:            http://${DOMAIN}:45394
-Supabase Studio:    http://${DOMAIN}:3001
+Supabase Studio:    http://${DOMAIN}:45395
 Supabase API:       http://${DOMAIN}:45393
 
 ANON_KEY=${ANON_KEY}
@@ -104,7 +104,7 @@ echo -e "${GREEN}  ✅ Despliegue completado${NC}"
 echo "============================================"
 echo ""
 echo "🌐 App:              http://${DOMAIN}:45394"
-echo "🛠️  Supabase Studio:  http://${DOMAIN}:3001"
+echo "🛠️  Supabase Studio:  http://${DOMAIN}:45395"
 echo "🔌 Supabase API:     http://${DOMAIN}:45393"
 echo ""
 echo "📄 Credenciales guardadas en: ${CREDS_FILE}"

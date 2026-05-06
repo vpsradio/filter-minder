@@ -89,7 +89,7 @@ echo "════════════════════════�
 echo -e "${G}  ✅ Instalación completada${N}"
 echo "════════════════════════════════════════════"
 echo "🌐 App:     http://${IP}:45394"
-echo "🛠️  Studio:  http://${IP}:3001"
+echo "🛠️  Studio:  http://${IP}:45395"
 echo "🔌 API:     http://${IP}:45393"
 echo ""
 echo "📄 Credenciales:"

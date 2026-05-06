@@ -125,7 +125,7 @@ services:
   studio:
     image: supabase/studio:2026.04.28-sha-89d08a2
     ports:
-      - "3001:3000"
+      - "45395:3000"
     environment:
       STUDIO_PG_META_URL: http://meta:8080
       SUPABASE_URL: http://kong:8000
