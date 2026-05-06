@@ -168,8 +168,9 @@ services:
       - db-data:/var/lib/postgresql/data
       - db-init:/docker-entrypoint-initdb.d
     configs:
-      - source: db_init_sql
-        target: /docker-entrypoint-initdb.d/01-init.sql
+      - source: db_init_sh
+        target: /docker-entrypoint-initdb.d/00-init.sh
+        mode: 0755
     healthcheck:
       test: pg_isready -U postgres -h localhost
       interval: 5s
@@ -178,29 +179,42 @@ services:
     <<: *restart
 
 configs:
-  db_init_sql:
+  db_init_sh:
     content: |
-      DO $$$$
-      BEGIN
-        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN
-          CREATE ROLE anon NOLOGIN NOINHERIT;
-        END IF;
-        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticated') THEN
-          CREATE ROLE authenticated NOLOGIN NOINHERIT;
-        END IF;
-        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticator') THEN
-          EXECUTE format('CREATE ROLE authenticator NOINHERIT LOGIN PASSWORD %L', current_setting('POSTGRES_PASSWORD', true));
-        END IF;
-        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN
-          CREATE ROLE supabase_auth_admin NOLOGIN NOINHERIT;
-        END IF;
-        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_admin') THEN
-          CREATE ROLE supabase_admin NOLOGIN NOINHERIT;
-        END IF;
-      END
-      $$$$;
-      GRANT anon TO authenticator;
-      GRANT authenticated TO authenticator;
+      #!/bin/bash
+      set -e
+      psql -v ON_ERROR_STOP=1 --username "$$POSTGRES_USER" --dbname "$$POSTGRES_DB" <<-EOSQL
+        DO \$$\$$
+        BEGIN
+          IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN
+            CREATE ROLE anon NOLOGIN NOINHERIT;
+          END IF;
+          IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticated') THEN
+            CREATE ROLE authenticated NOLOGIN NOINHERIT;
+          END IF;
+          IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'service_role') THEN
+            CREATE ROLE service_role NOLOGIN NOINHERIT BYPASSRLS;
+          END IF;
+          IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticator') THEN
+            CREATE ROLE authenticator NOINHERIT LOGIN PASSWORD '$$POSTGRES_PASSWORD';
+          ELSE
+            ALTER ROLE authenticator WITH LOGIN PASSWORD '$$POSTGRES_PASSWORD';
+          END IF;
+          IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN
+            CREATE ROLE supabase_auth_admin NOINHERIT LOGIN CREATEROLE PASSWORD '$$POSTGRES_PASSWORD';
+          ELSE
+            ALTER ROLE supabase_auth_admin WITH LOGIN CREATEROLE PASSWORD '$$POSTGRES_PASSWORD';
+          END IF;
+          IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_admin') THEN
+            CREATE ROLE supabase_admin NOINHERIT LOGIN SUPERUSER CREATEROLE CREATEDB REPLICATION BYPASSRLS PASSWORD '$$POSTGRES_PASSWORD';
+          END IF;
+        END
+        \$$\$$;
+        GRANT anon TO authenticator;
+        GRANT authenticated TO authenticator;
+        GRANT service_role TO authenticator;
+        CREATE SCHEMA IF NOT EXISTS auth AUTHORIZATION supabase_auth_admin;
+      EOSQL
 
 volumes:
   db-data:
