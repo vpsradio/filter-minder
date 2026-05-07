@@ -12,8 +12,13 @@ x-restart: &restart
 
 services:
   # ── Frontend React ────────────────────────────────────
+  # Portainer compila esta imagen desde el Dockerfile del repo (Opción A - Git).
   app:
-    image: ${APP_IMAGE}
+    build:
+      context: .
+      args:
+        VITE_SUPABASE_URL: http://${DOMAIN:-localhost}:45393
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${ANON_KEY}
     ports:
       - "45394:80"
     depends_on:
